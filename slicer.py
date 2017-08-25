@@ -3,7 +3,7 @@
 # Basic 3D Mesh Slicer
 # Written by Daniel Fitzgerald
 # 08/25/2017
-
+import os
 import sys
 import numpy
 from mayavi import mlab
@@ -29,13 +29,73 @@ def load_obj(filename):
     """
     print("Loading OBJ file '{0}'".format(filename))
 
+    swapyz=False
+
+    vertices = []
+    normals = []
+    texcoords = []
+    faces = []
+    
+    # Much of this code is borrowed from https://www.pygame.org/wiki/OBJFileLoader
+    if (os.path.exists(filename)):
+        with open(filename) as f:
+            lines  = f.readlines()
+    
+            for line in lines:
+                if line.startswith('#'): continue
+                values = line.split()
+                if not values: continue
+                
+                if values[0] == 'v':
+                    #v = map(float, values[1:4])
+                    v = [float(values[1]), float(values[2]), float(values[3])]
+                    if swapyz:
+                        v = v[0], v[2], v[1]
+                    vertices.append(v)
+                elif values[0] == 'vn':
+                    #v = map(float, values[1:4])
+                    v= [float(values[1]), float(values[2]), float(values[3])]
+                    if swapyz:
+                        v = v[0], v[2], v[1]
+                        normals.append(v)
+                    elif values[0] == 'vt':
+                        texcoords.append(map(float, values[1:3]))
+                    #elif values[0] in ('usemtl', 'usemat'):
+                    #    material = values[1]
+                    #elif values[0] == 'mtllib':
+                    #    mtl = MTL(values[1])
+                elif values[0] == 'f':
+                    face = []
+                    texcoords = []
+                    norms = []
+                    for v in values[1:]:
+                        w = v.split('/')
+                        face.append(int(w[0]) - 1) # subtract 1 to convert from 1-based indexing (.obj) to 0-based (Python)
+                        if len(w) >= 2 and len(w[1]) > 0:
+                            texcoords.append(int(w[1]))
+                        else:
+                            texcoords.append(0)
+                        if len(w) >= 3 and len(w[2]) > 0:
+                            norms.append(int(w[2]))
+                        else:
+                            norms.append(0)
+                    faces.append((face, norms, texcoords))
+    
+    print("\n{0} Vertices: ".format(len(vertices)))
+    #for vertex in vertices:
+    #    print("V<{0},{1},{2}>".format(vertex[0],vertex[1],vertex[2]))
+    
+    print("\n{0} faces: ".format(len(faces)))
+    #for face in faces:
+    #    print("F[{0},{1},{2}]".format(face[0][0], face[0][1], face[0][2]))
     
     # Vert4eces lists for x,y,z
-    x = [0.0, 1.0, 1.0, 0.0]
-    y = [0.0, 0.0, 1.0, 1.0]
-    z = [0.0, 0.0, 0.0, 0.0]
+    x = [vertex[0] for vertex in vertices]
+    y = [vertex[1] for vertex in vertices]
+    z = [vertex[2] for vertex in vertices]
     
-    triangles = [(0,1,2), (0,2,3)]
+    # Triangles array extracts the first three indeces of the face part of each of the faces, ignoring texture coordinates, norms, and vertex indeces past the third.
+    triangles = [(face[0][0], face[0][1], face[0][2]) for face in faces]
     
     return x,y,z,triangles
 
